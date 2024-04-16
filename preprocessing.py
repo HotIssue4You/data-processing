@@ -7,14 +7,14 @@ def process(data):
     2. 각 기사 제목으로부터 '[포토 뉴스]'와 같은 헤더를 지우고,
     3. 모든 특수문자를 지움.
     * 순서 바뀌면 안됨
-    :param data:
-    :return 전처리 완료된 기사 정보(제목, 게시 시간) 목록:
+    :param data: pandas dataframe
+    :return : 전처리 완료된 기사 정보(제목, 게시 시간) 목록
     """
     unique_data = to_unique(data)
     processed_data = pd.DataFrame(columns=['title', 'created_at'])
     for idx, row in unique_data.iterrows():
-        time_offset = get_time_offset(row['time_offset'])
-        if time_offset > 3:
+        minutes_ago = get_time_offset(row['time_offset'])
+        if minutes_ago > 3: # 3분 전보다 이전에 작성한 기사들은 무시(중복 제거를 위함)
             continue
         header_removed = remove_header(row['title'])
         processed_title = remove_specialChar(header_removed)
@@ -22,9 +22,18 @@ def process(data):
     return processed_data
 
 def get_time_offset(data):
+    """
+    :param data: pandas dataframe
+    :return: e.g.) 3분 전 -> 3 return
+    """
     return int(data[:-3])
 
 def to_unique(data):
+    """
+    data의 title속성이 중복인 행 제거
+    :param data: pandas dataframe
+    :return: unique data
+    """
     return data.drop_duplicates(subset='title')
 
 def remove_header(title):
@@ -50,7 +59,7 @@ def remove_specialChar(title):
 코드 확인용 메인 함수
 """
 def main():
-    data = pd.read_csv('results.csv')
+    data = pd.read_csv('results3.csv')
     processed = process(data)
     for idx, row in processed.iterrows():
         print(row['title'], row['created_at'])

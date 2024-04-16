@@ -6,6 +6,13 @@ from bs4 import BeautifulSoup as bs
 
 
 def get_news_data(url, user_agent, df):
+    """
+    네이버 뉴스 페이지의 최신 뉴스 10개를 스크래핑하여 df에 저장
+    :param url: 네이버 뉴스 최신순 정렬 url
+    :param user_agent:
+    :param df: pandas dataframe
+    :return: None
+    """
     res = requests.get(url, user_agent)
     soup = bs(res.text, "lxml")
     news_list = soup.find("ul", "list_news _infinite_list").find_all("li", "bx")
