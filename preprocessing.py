@@ -1,7 +1,6 @@
 import pandas as pd
 import re
 
-
 def process(data):
     """
     1. 기사 목록들로부터 중복 기사들을 유니크하게 만들고,
@@ -9,15 +8,21 @@ def process(data):
     3. 모든 특수문자를 지움.
     * 순서 바뀌면 안됨
     :param data:
-    :return 전처리 완료된 기사 목록(제목, 게시 시간):
+    :return 전처리 완료된 기사 정보(제목, 게시 시간) 목록:
     """
     unique_data = to_unique(data)
     processed_data = pd.DataFrame(columns=['title', 'created_at'])
     for idx, row in unique_data.iterrows():
+        time_offset = get_time_offset(row['time_offset'])
+        if time_offset > 3:
+            continue
         header_removed = remove_header(row['title'])
         processed_title = remove_specialChar(header_removed)
         processed_data.loc[len(processed_data)] = [processed_title, row['created_at']]
     return processed_data
+
+def get_time_offset(data):
+    return int(data[:-3])
 
 def to_unique(data):
     return data.drop_duplicates(subset='title')
@@ -47,8 +52,8 @@ def remove_specialChar(title):
 def main():
     data = pd.read_csv('results.csv')
     processed = process(data)
-    for title in processed['title']:
-        print(title)
+    for idx, row in processed.iterrows():
+        print(row['title'], row['created_at'])
 
 
 if __name__ == "__main__":

@@ -31,9 +31,10 @@ def main():
     try:
         get_news_data(url, user_agent, df)
     except (KeyError, ValueError):
+        # csv로 저장말고, 곧바로 데이터 프레임을 처리하는 부분 코드 추가 필요
         df.to_csv("results3.csv")
         return
-
+    # csv로 저장말고, 곧바로 데이터 프레임을 처리하는 부분 코드 추가 필요
     df.to_csv("results3.csv")
 
 
