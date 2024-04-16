@@ -2,18 +2,23 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from wordcloud import WordCloud
 import io
+from datetime import datetime, timedelta
 from django.utils import timezone
-from datetime import timedelta
 from .models import Article
 
-def get_titles_within_thirty_minutes_from_django():
-    thirty_minutes_ago = timezone.now() - timedelta(minutes=30)
+def get_titles_within_thirty_minutes_from_django(date, time):
 
-    # 30분 이내의 데이터 추출
-    queryset = Article.objects.filter(created_at__gte=thirty_minutes_ago)
+    # date, time 형식에 따라 변경(현재는 문자열로 입력, 예시 : ("2024-01-01", "15:30"))
+    date = datetime.strptime(date, '%Y-%m-%d').date()
+    time = datetime.strptime(time, '%H:%M').time()
+    input_datetime = timezone.make_aware(datetime.combine(date, time))
 
-    df = pd.DataFrame(list(queryset.values()))['title']
-    return df.to_list()
+    thirty_minutes_ago = input_datetime - timedelta(minutes=30)
+
+    queryset = Article.objects.filter(created_at__lte=input_datetime, created_at__gte=thirty_minutes_ago)
+
+    titles = list(queryset.values_list('title', flat=True))
+    return titles
 
 def parse_titles(titles):
     return ' '.join(title for title in titles)
