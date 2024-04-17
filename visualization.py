@@ -9,7 +9,9 @@ from .models import Article
 from PIL import Image
 
 '''
-마지막에 수정할 사항은 모두 "#"으로 주석 처리
+- 시각화 자료 : wordcloud, barplot, donutchart
+
+수정할 사항은 모두 "#"으로 주석 처리
 - 디자인, 폰트 경로, 날짜 형식, 이미지 크기 등
 '''
 
@@ -109,6 +111,55 @@ def make_barplot_with_noun_frequency(date, time):
     binary_data = buf.read()
     plt.close()
 
+    return binary_data
+
+'''
+- make_donutchart_with_noun_ratio
+date : 날짜("2024-01-01"), str
+time : 시간("15:30"), str
+
+date/time에 따른 30분 이내의 'noun_title' 데이터를 활용한 비율 도넛 차트 바이너리 반환
+'''
+def make_donutchart_with_noun_ratio(date, time):
+    noun_titles_list = get_titles_within_thirty_minutes_from_django(date, time, 'noun_title')
+    noun_titles = parse_titles(noun_titles_list)
+    noun_counter = Counter(noun_titles)
+    top_nouns = dict(noun_counter)
+
+    plt.rc("font", family= "Malgun Gothic") 
+    plt.rc("axes", unicode_minus = False)
+
+    # figsize(크기), style(디자인), label 수정 필요
+    sns.set_theme(font ='Malgun Gothic',
+                  rc = {'axes.unicode_minus' : False},
+                  style ='whitegrid')
+    plt.figure(figsize=(10, 5))
+    
+    data = list(top_nouns.values())
+    labels = list(top_nouns.keys())
+
+    total = sum(data)
+    top_10_data = data[:10]
+    top_10_labels = labels[:10]
+    top_10_percentage = sum(top_10_data) / total * 100
+
+    other_data = [total - sum(top_10_data)]
+    other_labels = ['기타']
+    other_percentage = 100 - top_10_percentage
+
+    fig, ax = plt.subplots()
+    ax.pie(top_10_data + other_data, labels=top_10_labels + other_labels, autopct='%1.1f%%', startangle=90)
+    centre_circle = plt.Circle((0,0),0.70,fc='white')
+    fig.gca().add_artist(centre_circle)
+    ax.set_title('단어 빈도에 따른 비율')
+    ax.axis('equal')
+    
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png')
+    buf.seek(0)
+    binary_data = buf.read()
+    plt.close()
+    
     return binary_data
 
 '''
