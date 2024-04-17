@@ -7,6 +7,8 @@ from django.utils import timezone
 from collections import Counter
 from .models import Article
 from PIL import Image
+from django.http import Http404
+import pytz
 
 '''
 - 시각화 자료 : wordcloud, barplot, donutchart
@@ -22,18 +24,28 @@ time : 시간("15:30"), str
 type : 'title' or 'noun_title', 시각화를 위한 열 선택
 
 date/time에 따른 30분 이내의 'title' or 'noun_title' 열의 시리즈를 리스트로 변환해서 반환
+
+예외 처리
+1. 올바른 형식의 date/time이 아닐 경우 : 현재 utc 시간으로 작동
+2. 입력한 시간에 기사가 존재하지 않을 경우 : 404 code 반환
 '''
 def get_titles_within_thirty_minutes_from_django(date, time, type='title'):
     # date/time의 형식은 달라질 수 있음
-    date = datetime.strptime(date, '%Y-%m-%d').date()
-    time = datetime.strptime(time, '%H:%M').time()
+    try:
+        date = datetime.strptime(date, '%Y-%m-%d').date()
+        time = datetime.strptime(time, '%H:%M').time()
+    except:
+        date = datetime.now(pytz.utc).date()
+        time = datetime.now(pytz.utc).time()
+
     input_datetime = timezone.make_aware(datetime.combine(date, time))
-
     thirty_minutes_ago = input_datetime - timedelta(minutes=30)
-
     queryset = Article.objects.filter(created_at__lte=input_datetime, created_at__gte=thirty_minutes_ago)
 
     titles = list(queryset.values_list(type, flat=True))
+    if len(titles) == 0:
+        raise Http404("No articles found within the last 30 minutes.")
+
     return titles
 
 '''
@@ -60,20 +72,21 @@ def make_binary_wordcloud_with_titles(date, time):
     top_nouns = dict(noun_counter.most_common(100))
 
     # 폰트 경로(font_path) 설정 필요, 설정 안하면 글자 깨짐
-    font_path = 'C:\\WINDOWS\\FONTS\\MALGUN.TTF'
+    plt.rc("font", family="Malgun Gothic")
+    plt.rc("axes", unicode_minus=False)
+
     wordcloud = WordCloud(width=800, height=400,
-                        background_color='white',
-                        font_path=font_path).generate_from_frequencies(top_nouns)
+                        background_color='white').generate_from_frequencies(top_nouns)
 
     # figsize(크기), recolor(색깔) 조절 필요
     plt.figure(figsize=(10, 5)) 
     plt.imshow(wordcloud.recolor(colormap='Reds'), interpolation='bilinear')
     plt.axis('off')
 
-    img_buffer = io.BytesIO()
-    plt.savefig(img_buffer, format='png')
-    img_buffer.seek(0)
-    img_binary = img_buffer.read()
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    img_binary = buf.read()
     plt.close()
 
     return img_binary
@@ -119,6 +132,9 @@ date : 날짜("2024-01-01"), str
 time : 시간("15:30"), str
 
 date/time에 따른 30분 이내의 'noun_title' 데이터를 활용한 비율 도넛 차트 바이너리 반환
+
+예외 처리
+1. 단어 개수가 10개 미만인 경우 : 전체로 그래프 생성
 '''
 def make_donutchart_with_noun_ratio(date, time):
     noun_titles_list = get_titles_within_thirty_minutes_from_django(date, time, 'noun_title')
@@ -138,17 +154,19 @@ def make_donutchart_with_noun_ratio(date, time):
     data = list(top_nouns.values())
     labels = list(top_nouns.keys())
 
-    total = sum(data)
-    top_10_data = data[:10]
-    top_10_labels = labels[:10]
-    top_10_percentage = sum(top_10_data) / total * 100
+    if len(data) < 10:
+        ax.pie(data, labels=labels, autopct='%1.1f%%', startangle=90)
+    else:
+        total = sum(data)
+        top_10_data = data[:10]
+        top_10_labels = labels[:10]
 
-    other_data = [total - sum(top_10_data)]
-    other_labels = ['기타']
-    other_percentage = 100 - top_10_percentage
+        other_data = [total - sum(top_10_data)]
+        other_labels = ['기타']
 
-    fig, ax = plt.subplots()
-    ax.pie(top_10_data + other_data, labels=top_10_labels + other_labels, autopct='%1.1f%%', startangle=90)
+        fig, ax = plt.subplots()
+        ax.pie(top_10_data + other_data, labels=top_10_labels + other_labels, autopct='%1.1f%%', startangle=90)
+    
     centre_circle = plt.Circle((0,0),0.70,fc='white')
     fig.gca().add_artist(centre_circle)
     ax.set_title('단어 빈도에 따른 비율')
